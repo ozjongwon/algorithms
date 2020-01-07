@@ -14,12 +14,15 @@
     (let [bottom-site (inc n*n)]
      (dotimes [i n]
        (union components bottom-site (- n*n i)))) ;; union bottom root sites
-    (->Percolation (make-array Integer/TYPE (* n n)) n components)))
+    (let [arr (make-array Integer/TYPE n*n)]
+      (dotimes [i n*n]
+        (aset arr i 0))
+      (->Percolation arr n components))))
 
 (defn- row-col->index [{:keys [n]} row col]
   (+ (* n row) col))
 
-(defn- index->row-col [{:keys [n]} index]
+(defn index->row-col [{:keys [n]} index]
   [(quot index n) (rem index n)])
 
 (defn- row-col->neighbour-indexes [{:keys [n]} row col]
