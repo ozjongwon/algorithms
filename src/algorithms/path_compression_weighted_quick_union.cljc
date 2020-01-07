@@ -28,13 +28,13 @@
     (if (= pid qid)
       components
       (let [[smaller ^int taller] (if (< (nth sizev pid) (nth sizev qid))
-                               [pid qid]
-                               [qid pid])]
+                                    [pid qid]
+                                    [qid pid])]
         (aset array smaller taller)
         (-> components
             (update-in [:sizev taller] + (get-in components [:sizev smaller]))
             (update :count dec)
-         )))))
+            )))))
 
 (defn connected? [components p q]
   (= (find components p) (find components q)))
