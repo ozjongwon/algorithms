@@ -7,6 +7,7 @@
   ;; make n x n sites
   ;; 0: blocked
   ;; 1: opened
+  ;; 2: opened & unioned
   (let [n*n (* n n)
         components (make-components (+ n*n 2))] ;; add two sites - top and bottom
     (dotimes [i n]
@@ -14,12 +15,12 @@
     (let [bottom-site (inc n*n)]
      (dotimes [i n]
        (union components bottom-site (- n*n i)))) ;; union bottom root sites
-    (let [arr (make-array Integer/TYPE n*n)]
+    (let [arr ^ints (make-array Integer/TYPE n*n)]
       (dotimes [i n*n]
         (aset arr i 0))
       (->Percolation arr n components))))
 
-(defn- row-col->index [{:keys [n]} row col]
+(defn row-col->index [{:keys [n]} row col]
   (+ (* n row) col))
 
 (defn index->row-col [{:keys [n]} index]
@@ -40,15 +41,28 @@
       (pos? (mod index n)) (conj left)
       (pos? (mod (inc index) n)) (conj right))))
 
+#_
 (defn open [percolation row col]
   (let [idx (row-col->index percolation row col)]
-   (aset ^ints (:sites percolation) idx 1)
-   (doseq [n-idx (index->neighbour-indexes percolation idx)]
-     (when (apply open? percolation (index->row-col percolation n-idx))
-       (union (:components percolation) (inc idx) (inc n-idx))))))
+    (aset ^ints (:sites percolation) idx 1)
+    (doseq [n-idx (index->neighbour-indexes percolation idx)]
+      (when (apply open? percolation (index->row-col percolation n-idx))
+        (union (:components percolation) (inc idx) (inc n-idx))))))
+
+(defn open [percolation row col]
+  (let [idx (row-col->index percolation row col)
+        indexes-to-union (->> (index->neighbour-indexes percolation idx)
+                              (filterv #(apply open? percolation (index->row-col percolation %))))
+        ^ints sites (:sites percolation)]
+    (aset sites idx (if (empty? indexes-to-union)
+                            1 ;; open
+                            2)) ;; open & union
+    (doseq [n-idx indexes-to-union]
+      (union (:components percolation) (inc idx) (inc n-idx))
+      (aset sites n-idx 2))))
 
 (defn open? [percolation row col]
-  (= (aget ^ints (:sites percolation) (row-col->index percolation row col)) 1))
+  (pos? (aget ^ints (:sites percolation) (row-col->index percolation row col))))
 
 (defn full? [percolation row col]
   ;; A full site is an open site that can be connected to an open site in the top row
