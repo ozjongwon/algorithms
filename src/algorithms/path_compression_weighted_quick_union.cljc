@@ -33,8 +33,7 @@
         (aset array smaller taller)
         (-> components
             (update-in [:sizev taller] + (get-in components [:sizev smaller]))
-            (update :count dec)
-            )))))
+            (update :count dec))))))
 
 (defn connected? [components p q]
   (= (find components p) (find components q)))
