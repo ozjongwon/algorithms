@@ -61,7 +61,7 @@
 ;;; (Worst case)
 ;;; make-components: N
 ;;; union: N
-;;; connected?: 1
 ;;; find: N
+;;; connected?: 2N
 ;;;
 ;;; Now find is a bottleneck.
