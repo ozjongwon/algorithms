@@ -74,11 +74,47 @@
   (connected? (:components percolation) 0 (inc (* (:n percolation) (:n percolation)))))
 
 ;;;;;;
-(defn monte-carlo-simulation [n]
-  (let [rand-max (* n n)
-        percolation (make-percolation n)]
-    (while (not (percolates? percolation))
-      (let [[row col] (->> (rand-int rand-max) (sites-index->row-col percolation))]
-       (when-not (open? percolation row col)
-         (open percolation row col))))
-    percolation))
+(defrecord PercolationStats [n trials confidence thresholds mean stddev confidence-low confidence-high])
+
+(defn make-percolation-stats [n trials confidence]
+  (->PercolationStats n trials confidence [] nil nil nil nil))
+
+(defn set-mean [percolation-stats]
+  (assoc percolation-stats :mean (/ (apply + (:thresholds percolation-stats)) (:trials percolation-stats))))
+
+(defn set-stddev [percolation-stats]
+  (let [mean (:mean percolation-stats)]
+    (assoc percolation-stats :stddev (->  (fn [acc x]
+                                            (let [x-mean (- x mean)]
+                                              (+ acc (* x-mean x-mean))))
+                                          (reduce 0 (:thresholds percolation-stats))
+                                          (/ (dec (:trials percolation-stats)))))))
+
+(defn set-confidence-ranges [percolation-stats]
+  (let [{:keys [confidence trials mean stddev]} percolation-stats
+        conf-const (* confidence (Math/sqrt (/ stddev trials)))]
+    (-> percolation-stats
+        (assoc :confidence-low (- mean conf-const) :confidence-high (+ mean conf-const)))))
+
+(defn monte-carlo-simulation [n trials confidence]
+  (let [n*n (* n n)]
+   (loop [n-run trials percolation-stats (make-percolation-stats n trials confidence)]
+     (if (zero? n-run)
+       (-> (set-mean percolation-stats)
+           (set-stddev)
+           (set-confidence-ranges))
+       (let [percolation (make-percolation n)]
+         (while (not (percolates? percolation))
+           (let [[row col] (->> (rand-int n*n) (sites-index->row-col percolation))]
+             (when-not (open? percolation row col)
+               (open percolation row col))))
+         (recur (dec n-run) (update percolation-stats :thresholds conj (/ (number-of-open-sites percolation) n*n))))))))
+
+;;(monte-carlo-simulation 20 40 1.96)
+
+(defn run-monte-carlo [n trials]
+  (let [{:keys [mean stddev confidence-low confidence-high]} (monte-carlo-simulation n trials 1.96)]
+    {:mean (float mean)
+     :stddev (float stddev)
+     :confidence-low confidence-low
+     :confidence-high confidence-high}))
