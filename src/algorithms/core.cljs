@@ -17,9 +17,9 @@
         percolation (:percolation app-state)
         sites (:sites percolation)]
     (dom/div
-     (dom/button {;;:disabled (percolates? percolation)
+     (dom/button {:disabled (percolates? percolation)
                   :onclick #(reacl/send-message! this percolation)}
-                 "몬테카를로!(x10)")
+                 "Open 10 sites")
      (dom/br)
      (dom/svg {:version "1.1" :base-profile "full" :width n*n :height n*n :xmlns "http://www.w3.org/2000/svg"}
               (dom/rect {:width "100%" :height "100%" :fill "LightCyan"})
