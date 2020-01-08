@@ -20,16 +20,13 @@
         (aset arr i 0))
       (->Percolation arr n components))))
 
-(defn row-col->index [{:keys [n]} row col]
-  (+ (* n row) col))
+(defn sites-row-col->index [{:keys [n]} row col]
+  (+ (* n col) row))
 
-(defn index->row-col [{:keys [n]} index]
-  [(quot index n) (rem index n)])
+(defn sites-index->row-col [{:keys [n]} index]
+  [(rem index n) (quot index n)])
 
-(defn- row-col->neighbour-indexes [{:keys [n]} row col]
-  [[(dec row) col] [(inc row) col] [row (dec col)] [row (inc col)]])
-
-(defn- index->neighbour-indexes [{:keys [n]} index]
+(defn- sites-index->neighbour-indexes [{:keys [n]} index]
   (let [n*n (* n n)
         top (- index n)
         bottom (+ index n)
@@ -41,36 +38,37 @@
       (pos? (mod index n)) (conj left)
       (pos? (mod (inc index) n)) (conj right))))
 
-#_
-(defn open [percolation row col]
-  (let [idx (row-col->index percolation row col)]
-    (aset ^ints (:sites percolation) idx 1)
-    (doseq [n-idx (index->neighbour-indexes percolation idx)]
-      (when (apply open? percolation (index->row-col percolation n-idx))
-        (union (:components percolation) (inc idx) (inc n-idx))))))
-
-(defn open [percolation row col]
-  (let [idx (row-col->index percolation row col)
-        indexes-to-union (->> (index->neighbour-indexes percolation idx)
-                              (filterv #(apply open? percolation (index->row-col percolation %))))
-        ^ints sites (:sites percolation)]
-    (aset sites idx (if (empty? indexes-to-union)
-                            1 ;; open
-                            2)) ;; open & union
-    (doseq [n-idx indexes-to-union]
-      (union (:components percolation) (inc idx) (inc n-idx))
-      (aset sites n-idx 2))))
-
 (defn open? [percolation row col]
-  (pos? (aget ^ints (:sites percolation) (row-col->index percolation row col))))
+  (pos? (aget ^ints (:sites percolation) (sites-row-col->index percolation row col))))
+
+(defn open [percolation row col]
+  (let [idx (sites-row-col->index percolation row col)
+        indexes-to-union (->> (sites-index->neighbour-indexes percolation idx)
+                              (filterv #(apply open? percolation (sites-index->row-col percolation %))))
+        ^ints sites (:sites percolation)]
+    (aset sites idx 1) ;; open
+    #_
+    (when (or (zero? col) (zero? row))
+      (println ">>> (x,y) == (" row "," col ") - idx: " idx " unions: " indexes-to-union))
+    (doseq [n-idx indexes-to-union]
+      #_
+      (when (or (zero? col) (zero? row))
+        (println ">>>*** UNION (nx,ny) == " (sites-index->row-col percolation n-idx)))
+      (union (:components percolation) (inc idx) (inc n-idx)))))
 
 (defn full? [percolation row col]
   ;; A full site is an open site that can be connected to an open site in the top row
   ;; via a chain of neighboring (left, right, up, down) open sites.
-  (connected? (:components percolation) 0 (inc (row-col->index percolation row col))))
+
+  ;; (connected? (:components percolation) 0 (inc (sites-row-col->index percolation row col)))
+  (let [conn? (connected? (:components percolation) 0 (inc (sites-row-col->index percolation row col)))]
+    conn?))
 
 (defn number-of-open-sites [percolation]
-  (apply + (:sites percolation)))
+  (reduce #(+ %1 (if (pos? %2)
+                   1
+                   0))
+          (:sites percolation)))
 
 (defn percolates? [percolation]
   (connected? (:components percolation) 0 (inc (* (:n percolation) (:n percolation)))))
@@ -80,7 +78,7 @@
   (let [rand-max (* n n)
         percolation (make-percolation n)]
     (while (not (percolates? percolation))
-      (let [[row col] (->> (rand-int rand-max) (index->row-col percolation))]
+      (let [[row col] (->> (rand-int rand-max) (sites-index->row-col percolation))]
        (when-not (open? percolation row col)
          (open percolation row col))))
     percolation))
