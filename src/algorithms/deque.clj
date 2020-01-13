@@ -9,77 +9,60 @@
   (remove-first [this])
   (remove-last [this]))
 
-(defrecord ArrayDeque [n front end inc-ratio dec-ratio ^objects array])
+;;; Record & internal functions
+(defrecord ArrayDeque [n head tail inc-ratio dec-ratio ^objects array])
 
+(defn- inc-index [array-dequeue i]
+  (mod (inc i) (capacity array-dequeue)))
+
+(defn- dec-index [array-dequeue i]
+  (mod (dec i) (capacity array-dequeue)))
+
+(declare capacity resize!)
+
+(defn- add-item [array-dequeue item direction]
+  (when (= (capacity array-dequeue) (+ @(:n array-dequeue) 1))
+    (resize! array-dequeue (get array-dequeue :inc-ratio)))
+  (let [idx @(get array-dequeue direction)
+        ^objects array @(get array-dequeue :array)
+        array-len (alength array)]
+    (aset array idx item)
+    (reset! (get array-dequeue direction) (next-index array-dequeue direction))
+    (swap! (:n array-dequeue) inc)))
+
+(defn- remove-item [array-dequeue direction]
+  (when (> (/ (capacity array-dequeue) 2) @(:n array-dequeue))
+    (resize! array-dequeue (:dec-ratio array-dequeue)))
+  (let [^objects array @(get array-dequeue :array)
+        idx (previous-index array-dequeue direction)
+        result (aget array idx)]
+    (aset array idx nil)
+    (reset! (get array-dequeue direction) idx)
+    (swap! (:n array-dequeue) dec)
+    result))
+
+;;;
+;;; Public interface
+;;;
 (defn make-deque
   ([]
    (make-deque :array))
   ([opt]
-   (->ArrayDeque (atom 0) (atom 1) (atom 0) 2 1/4 (atom (object-array 2)))))
+   (->ArrayDeque (atom 0) (atom 1) (atom 0) 2 1/2 (atom (object-array 2)))))
 
-(defn- %index [array-dequeue direction ffn efn]
-  (let [idx ((case direction
-               :front ffn
-               :end efn)
-             @(get array-dequeue direction))
-        alen (alength ^objects @(get array-dequeue :array))]
-    (cond (neg? idx) (dec alen)
-          (<= alen idx) 0
-          :else idx)))
-
-(defn- next-index [array-dequeue direction]
-  (%index array-dequeue direction dec inc))
-
-(defn- previous-index [array-dequeue direction]
-  (%index array-dequeue direction inc dec))
+(defn capacity [array-dequeue]
+  (alength ^objects @(get array-dequeue :array)))
 
 (defn resize! [^ArrayDeque array-dequeue ratio]
-  (let [old-array @(get array-dequeue :array)
-        old-len (alength ^objects old-array)
-        new-len (-> (* ratio old-len) (int) (inc))
-        new-array (object-array new-len)
-        front @(get array-dequeue :front)
-        end @(get array-dequeue :end)]
-    (if (< front end)
-      (let [n-elem (- end front)]
-        (dotimes [i n-elem]
-          (aset new-array i (aget ^objects old-array (+ front i))))
-        (reset! (:front array-dequeue) 0)
-        (reset! (:end array-dequeue) n-elem))
-      (do
-        ;; copy 0 to end
-        (dotimes [i end]
-          (aset new-array i (aget ^objects old-array i)))
-        ;; copy end-of-array down to front
-        (let [n-elem (- old-len front)]
-          (dotimes [i n-elem]
-            (aset new-array (- new-len i 1) (aget ^objects old-array (- old-len i 1))))
-          (reset! (:front array-dequeue) (- new-len n-elem)))))
-    (reset! (:array array-dequeue) new-array)))
-
-(defn- add-item [this item direction]
-  (when (<= (alength ^objects @(get this :array)) (* @(:n this) (:inc-ratio this)))
-    (resize! this (get this :inc-ratio)))
-  (let [idx @(get this direction)
-        ^objects array @(get this :array)
-        array-len (alength array)]
-    (println "*****" idx array-len)
-    (aset array idx item)
-    (reset! (get this direction) (next-index this direction))
-    (swap! (:n this) inc)))
-
-(defn- remove-item [this direction]
-  (when (-> (alength ^objects @(get this :array))
-            (* (:dec-ratio this))
-            (> @(:n this)))
-    (resize! this (:dec-ratio this)))
-  (let [^objects array @(get this :array)
-        idx (previous-index this direction)
-        result (aget array idx)]
-    (aset array idx nil)
-    (reset! (get this direction) idx)
-    (swap! (:n this) dec)
-    result))
+  (let [start-idx @(get array-dequeue :head)
+        ^objects old-array @(get array-dequeue :array)
+        new-array (-> (alength old-array) (* ratio) (int) (inc) (object-array))
+        n @(get array-dequeue :n)]
+    (dotimes [i n] ;; copy from head to tail
+      (aset new-array i (aget old-array (inc-index array-dequeue (+ start-idx i)))))
+    (reset! (get array-dequeue :array) new-array)
+    (reset! (get array-dequeue :head) (dec-index array-dequeue 0))
+    (reset! (get array-dequeue :tail) n)))
 
 (extend-protocol Deque
   ArrayDeque
@@ -88,12 +71,12 @@
   (size [this]
     @(:n this))
   (add-first [this item]
-    (add-item this item :front))
+    (add-item this item :head))
   (add-last [this item]
-    (add-item this item :end))
+    (add-item this item :tail))
   (remove-first [this]
-    (remove-item this :front))
+    (remove-item this :head))
   (remove-last [this]
-    (remove-item this :end)))
+    (remove-item this :tail)))
 
 
