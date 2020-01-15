@@ -22,13 +22,12 @@
             (do (aset arr2 k (aget arr1 i)) (recur (inc i) j (inc k)))))))
 
 (defn sort [^objects arr]
-  (let [n (alength arr)
-        aux (object-array n)]
-    (loop [sz 1 arr1 arr arr2 aux]
+  (let [n (alength arr)]
+    (loop [sz 1 arr1 arr arr2 (object-array n)]
       (if (< sz n)
         (do (loop [l 0]
               (when (<= l (- n sz))
                 (merge arr1 arr2 l (dec (+ l sz)) (min (dec (+ l sz sz)) (dec n)))
                 (recur (+ l sz sz))))
-         (recur (+ sz sz) arr2 arr1))
+            (recur (+ sz sz) arr2 arr1))
         arr1))))
