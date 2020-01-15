@@ -78,5 +78,3 @@
     (remove-item this :head))
   (remove-last [this]
     (remove-item this :tail)))
-
-
