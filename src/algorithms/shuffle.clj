@@ -49,17 +49,17 @@
         result
         (recur (inc i) (vswap result i (+ (rand-int (- n i)) i)))))))
 
+(comment
+ (defonce counter {[1 2 3] 0
+                   [1 3 2] 0
+                   [2 1 3] 0
+                   [2 3 1] 0
+                   [3 2 1] 0
+                   [3 1 2] 0})
 
-(defonce counter {[1 2 3] 0
-                  [1 3 2] 0
-                  [2 1 3] 0
-                  [2 3 1] 0
-                  [3 2 1] 0
-                  [3 1 2] 0})
 
-
-(let [v [1 2 3]]
-  (loop [i 1000000 counter counter]
-    (if (zero? i)
-      counter
-      (recur (dec i) (update counter (shuffle2 v) inc)))))
+ (let [v [1 2 3]]
+   (loop [i 1000000 counter counter]
+     (if (zero? i)
+       counter
+       (recur (dec i) (update counter (shuffle2 v) inc))))))
