@@ -12,13 +12,25 @@
 ;;; Record & internal functions
 (defrecord ArrayDeque [n head tail inc-ratio dec-ratio ^objects array])
 
+(declare capacity resize!)
+
 (defn- inc-index [array-dequeue i]
   (mod (inc i) (capacity array-dequeue)))
 
 (defn- dec-index [array-dequeue i]
   (mod (dec i) (capacity array-dequeue)))
 
-(declare capacity resize!)
+(defn- inc-direction [array-dequeue direction]
+  (let [idx @(get array-dequeue direction)]
+   (case direction
+     :head (dec-index array-dequeue idx)
+     :tail (inc-index array-dequeue idx))))
+
+(defn- dec-direction [array-dequeue direction]
+  (let [idx @(get array-dequeue direction)]
+   (case direction
+     :head (inc-index array-dequeue idx)
+     :tail (dec-index array-dequeue idx))))
 
 (defn- add-item [array-dequeue item direction]
   (when (= (capacity array-dequeue) (+ @(:n array-dequeue) 1))
@@ -27,14 +39,16 @@
         ^objects array @(get array-dequeue :array)
         array-len (alength array)]
     (aset array idx item)
-    (reset! (get array-dequeue direction) (next-index array-dequeue direction))
+    (reset! (get array-dequeue direction) (inc-direction array-dequeue direction))
     (swap! (:n array-dequeue) inc)))
 
 (defn- remove-item [array-dequeue direction]
-  (when (> (/ (capacity array-dequeue) 2) @(:n array-dequeue))
-    (resize! array-dequeue (:dec-ratio array-dequeue)))
+  (let [n @(:n array-dequeue)]
+    (assert (pos? n) "Overflow!")
+    (when (> (/ (capacity array-dequeue) 2) n)
+      (resize! array-dequeue (:dec-ratio array-dequeue))))
   (let [^objects array @(get array-dequeue :array)
-        idx (previous-index array-dequeue direction)
+        idx (dec-direction array-dequeue direction)
         result (aget array idx)]
     (aset array idx nil)
     (reset! (get array-dequeue direction) idx)
@@ -44,11 +58,8 @@
 ;;;
 ;;; Public interface
 ;;;
-(defn make-deque
-  ([]
-   (make-deque :array))
-  ([opt]
-   (->ArrayDeque (atom 0) (atom 1) (atom 0) 2 1/2 (atom (object-array 2)))))
+(defn make-deque []
+  (->ArrayDeque (atom 0) (atom 1) (atom 0) 2 1/2 (atom (object-array 2))))
 
 (defn capacity [array-dequeue]
   (alength ^objects @(get array-dequeue :array)))
@@ -78,3 +89,14 @@
     (remove-item this :head))
   (remove-last [this]
     (remove-item this :tail)))
+;;;;;;;;;
+(comment
+  (def dq (make-deque))
+  (add-first dq 0)
+  (add-first dq 1)
+  (add-first dq 2)
+  (add-last dq 10)
+  (add-last dq 11)
+  (add-last dq 12)
+
+  )
